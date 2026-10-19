@@ -284,8 +284,7 @@
 
     const separator = PORTAL_URL.includes("?") ? "&" : "?";
 
-    window.location.href =
-      PORTAL_URL + separator + "id=" + encodeURIComponent(cleanId);
+    lookupPersonnelOnPage(id);
   }
 
   function searchPersonnel() {
@@ -298,7 +297,7 @@
       return;
     }
 
-    openVerificationPortal(id);
+    lookupPersonnelOnPage(id);
   }
 
   // Press Enter in the ID field to start manual search.
