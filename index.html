@@ -267,25 +267,108 @@
     return match ? match[1].trim() : value;
   }
 
-  function openVerificationPortal(id) {
-    const cleanId = String(id || "").trim();
+  
 
-    if (!cleanId) {
-      setStatus("Please enter or scan a personnel ID Number.");
-      return;
-    }
+function openVerificationPortal(id) {
+  const cleanId = String(id || "").trim();
 
-    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(PORTAL_URL)) {
-      setStatus("The personnel portal URL is not configured correctly. Update PORTAL_URL in index.html.");
-      return;
-    }
-
-    setStatus("Opening personnel verification portal...");
-
-    const separator = PORTAL_URL.includes("?") ? "&" : "?";
-
-    lookupPersonnelOnPage(id);
+  if (!cleanId) {
+    setStatus("Please enter or scan a personnel ID Number.");
+    return;
   }
+
+  setStatus("Searching for personnel...");
+  document.getElementById("result").style.display = "none";
+
+  const callbackName =
+    "personnelCallback_" + Date.now() + "_" +
+    Math.floor(Math.random() * 100000);
+
+  const script = document.createElement("script");
+  const url = new URL(PORTAL_URL);
+
+  url.searchParams.set("action", "lookup");
+  url.searchParams.set("id", cleanId);
+  url.searchParams.set("callback", callbackName);
+
+  let finished = false;
+
+  function cleanup() {
+    clearTimeout(timeoutId);
+    delete window[callbackName];
+    script.remove();
+  }
+
+  function fail(message) {
+    if (finished) return;
+    finished = true;
+    cleanup();
+    setStatus(message);
+  }
+
+  const timeoutId = setTimeout(function() {
+    fail("Verification timed out. Please try again.");
+  }, 20000);
+
+  window[callbackName] = function(person) {
+    if (finished) return;
+
+    finished = true;
+    cleanup();
+
+    if (!person || !person.found) {
+      setStatus(person?.message || "Personnel record not found.");
+      return;
+    }
+
+    document.getElementById("personId").textContent =
+      person.idNumber || cleanId;
+
+    document.getElementById("personName").textContent =
+      [person.title, person.name, person.postNominal]
+        .filter(Boolean).join(" ");
+
+    document.getElementById("designation").textContent =
+      person.designation || "";
+
+    document.getElementById("agency").textContent =
+      person.agency || "";
+
+    document.getElementById("phone").textContent =
+      person.contactNumber || "";
+
+    document.getElementById("email").textContent =
+      person.email || "";
+
+    const photo = document.getElementById("photo");
+    photo.style.display = "none";
+    photo.removeAttribute("src");
+
+    if (person.photo) {
+      photo.onload = function() {
+        photo.style.display = "block";
+      };
+
+      photo.onerror = function() {
+        photo.style.display = "none";
+      };
+
+      photo.src = person.photo;
+    }
+
+    document.getElementById("result").style.display = "block";
+    setStatus("Personnel record found.");
+  };
+
+  script.onerror = function() {
+    fail("Unable to contact the verification service.");
+  };
+
+  script.src = url.toString();
+  document.body.appendChild(script);
+}
+
+
 
   function searchPersonnel() {
     const input = document.getElementById("idNumber");
