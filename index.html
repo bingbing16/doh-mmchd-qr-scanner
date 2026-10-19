@@ -204,6 +204,15 @@
         <p><span class="label">Contact Number:</span> <span id="phone"></span></p>
         <p><span class="label">Email:</span> <span id="email"></span></p>
       </div>
+
+      <button
+        id="scanAnotherButton"
+        class="primary"
+        type="button"
+        onclick="scanAnotherUser()"
+      >
+        Scan Another User
+      </button>
     </div>
 
     <p class="hint">
@@ -491,6 +500,37 @@ function searchPersonnel() {
     cameraStarting = false;
     updateCameraButtons();
   }
+
+  
+function scanAnotherUser() {
+  // Clear the previous ID
+  document.getElementById("idNumber").value = "";
+
+  // Clear the previous personnel details
+  document.getElementById("personName").textContent = "";
+  document.getElementById("designation").textContent = "";
+  document.getElementById("personId").textContent = "";
+  document.getElementById("agency").textContent = "";
+  document.getElementById("phone").textContent = "";
+  document.getElementById("email").textContent = "";
+
+  // Clear the previous photo
+  const photo = document.getElementById("photo");
+  photo.removeAttribute("src");
+  photo.style.display = "none";
+
+  // Hide the previous result
+  document.getElementById("result").style.display = "none";
+
+  // Reset scanner state
+  processing = false;
+  updateCameraButtons();
+
+  // Reset status and focus the ID input
+  setStatus("Ready to scan or verify another personnel ID.");
+  document.getElementById("idNumber").focus();
+}
+
 </script>
 </body>
 </html>
