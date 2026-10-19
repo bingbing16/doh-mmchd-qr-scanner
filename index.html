@@ -370,18 +370,18 @@ function openVerificationPortal(id) {
 
 
 
-  function searchPersonnel() {
-    const input = document.getElementById("idNumber");
-    const id = input.value.trim();
+function searchPersonnel() {
+  const input = document.getElementById("idNumber");
+  const id = input.value.trim();
 
-    if (!id) {
-      setStatus("Please enter an ID Number or scan a QR code.");
-      input.focus();
-      return;
-    }
-
-    lookupPersonnelOnPage(id);
+  if (!id) {
+    setStatus("Please enter an ID Number or scan a QR code.");
+    input.focus();
+    return;
   }
+
+  openVerificationPortal(id);
+}
 
   // Press Enter in the ID field to start manual search.
   document.getElementById("idNumber").addEventListener("keydown", function(event) {
