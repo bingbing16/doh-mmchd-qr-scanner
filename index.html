@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#087443">
+  <title>DOH-MMCHD Personnel QR Verification</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f6f8;
+      margin: 0;
+      padding: 16px;
+      color: #263238;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: auto;
+    }
+
+    .header {
+      background: #087443;
+      color: white;
+      padding: 22px 16px;
+      text-align: center;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .header h1 {
+      margin: 0 0 7px;
+      font-size: 21px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 3px 12px #00000012;
+    }
+
+    button, input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 13px;
+      margin-top: 10px;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    input {
+      border: 1px solid #ccd5d9;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: #087443;
+      color: white;
+    }
+
+    .secondary {
+      background: #e6f2eb;
+      color: #075d36;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 15px;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    #status {
+      margin-top: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    #result {
+      display: none;
+      margin-top: 20px;
+      border-top: 1px solid #e1e7e9;
+      padding-top: 20px;
+    }
+
+    .profile {
+      text-align: center;
+    }
+
+    #photo {
+      width: 130px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      display: none;
+      margin: 0 auto 15px;
+    }
+
+    .name {
+      font-size: 21px;
+      font-weight: bold;
+      color: #087443;
+      margin-bottom: 8px;
+    }
+
+    .details {
+      margin-top: 18px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .details p {
+      margin: 8px 0;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #6b777b;
+      margin-top: 18px;
+    }
+
+    .hint {
+      color: #6b777b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <header class="header">
+    <h1>Personnel QR Verification</h1>
+    <div>DOH – Metro Manila Center for Health Development</div>
+  </header>
+
+  <main class="card">
+
+    <h3>Scan QR Code</h3>
+    <p>Allow camera access, then position the QR code inside the scanning frame.</p>
+
+    <button id="startButton" class="primary" type="button" onclick="startCamera()">
+      📷 Start Camera Scanner
+    </button>
+
+    <div id="reader"></div>
+
+    <button id="stopButton" class="secondary" type="button" onclick="stopCamera()" disabled>
+      Stop Camera
+    </button>
+
+    <hr style="margin:24px 0;border:0;border-top:1px solid #e1e7e9;">
+
+    <h3>Search by ID Number</h3>
+    <input
+      id="idNumber"
+      type="text"
+      placeholder="Enter personnel ID number"
+      autocomplete="off"
+      aria-label="Personnel ID Number"
+    >
+
+    <button class="primary" type="button" onclick="searchPersonnel()">
+      Verify Personnel
+    </button>
+
+    <div id="status" role="status" aria-live="polite">
+      Start the camera or enter a personnel ID number.
+    </div>
+
+    <div id="result">
+      <div class="profile">
+        <img id="photo" alt="Personnel photo">
+        <div id="personName" class="name"></div>
+        <div id="designation"></div>
+      </div>
+
+      <div class="details">
+        <p><span class="label">ID Number:</span> <span id="personId"></span></p>
+        <p><span class="label">Office/Agency:</span> <span id="agency"></span></p>
+        <p><span class="label">Contact Number:</span> <span id="phone"></span></p>
+        <p><span class="label">Email:</span> <span id="email"></span></p>
+      </div>
+    </div>
+
+    <p class="hint">
+      The scanner reads the QR code and sends the ID to the official Apps Script
+      verification portal. Manual search also opens that portal with the entered ID.
+    </p>
+  </main>
+
+  <div class="footer">
+    DOH-MMCHD | Personnel Verification Portal
+  </div>
+</div>
+
+<script>
+  /*
+   * IMPORTANT:
+   * Replace the URL below with the deployed Apps Script /exec URL
+   * that serves your personnel verification page and contains doGet(e)
+   * plus findPersonnelById(idNumber).
+   */
+  const PORTAL_URL =
+    "https://script.google.com/macros/s/AKfycbzQpdCcUDYmserc2Nmi43T4YT59u8WqHUzJDwUApj9az3nBdGK-1YQlzRm16RJf9qAHGA/exec";
+
+  let qrScanner = null;
+  let cameraRunning = false;
+  let cameraStarting = false;
+  let processing = false;
+
+  function setStatus(message) {
+    document.getElementById("status").textContent = message;
+  }
+
+  function updateCameraButtons() {
+    document.getElementById("startButton").disabled =
+      cameraRunning || cameraStarting || processing;
+
+    document.getElementById("stopButton").disabled =
+      !cameraRunning && !cameraStarting;
+  }
+
+  function extractId(value) {
+    value = String(value || "").trim();
+
+    if (!value) return "";
+
+    // Supports QR codes containing a URL such as /exec?id=12345.
+    try {
+      const url = new URL(value);
+      const id = url.searchParams.get("id") ||
+                 url.searchParams.get("ID Number") ||
+                 url.searchParams.get("idNumber");
+
+      if (id) return id.trim();
+    } catch (error) {
+      // The QR value may be plain text rather than a URL.
+    }
+
+    // Supports QR values such as "ID: 12345" or "ID Number: 12345".
+    const match = value.match(/^(?:ID(?:\s*Number)?\s*[:#=]\s*)(.+)$/i);
+
+    return match ? match[1].trim() : value;
+  }
+
+  function openVerificationPortal(id) {
+    const cleanId = String(id || "").trim();
+
+    if (!cleanId) {
+      setStatus("Please enter or scan a personnel ID Number.");
+      return;
+    }
+
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(PORTAL_URL)) {
+      setStatus("The personnel portal URL is not configured correctly. Update PORTAL_URL in index.html.");
+      return;
+    }
+
+    setStatus("Opening personnel verification portal...");
+
+    const separator = PORTAL_URL.includes("?") ? "&" : "?";
+
+    window.location.href =
+      PORTAL_URL + separator + "id=" + encodeURIComponent(cleanId);
+  }
+
+  function searchPersonnel() {
+    const input = document.getElementById("idNumber");
+    const id = input.value.trim();
+
+    if (!id) {
+      setStatus("Please enter an ID Number or scan a QR code.");
+      input.focus();
+      return;
+    }
+
+    openVerificationPortal(id);
+  }
+
+  // Press Enter in the ID field to start manual search.
+  document.getElementById("idNumber").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+      searchPersonnel();
+    }
+  });
+
+  async function startCamera() {
+    if (cameraRunning || cameraStarting || processing) return;
+
+    if (!window.isSecureContext ||
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia) {
+      setStatus(
+        "Camera access requires HTTPS. Open this scanner directly from its " +
+        "published GitHub Pages URL."
+      );
+      return;
+    }
+
+    if (typeof Html5Qrcode === "undefined") {
+      setStatus(
+        "The QR scanner library could not load. Check your internet connection and reload."
+      );
+      return;
+    }
+
+    cameraStarting = true;
+    updateCameraButtons();
+    setStatus("Requesting camera permission. Allow access if Chrome prompts you.");
+
+    try {
+      qrScanner = new Html5Qrcode("reader");
+
+      await qrScanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: function(width, height) {
+            const size = Math.floor(Math.min(width, height) * 0.75);
+            return { width: size, height: size };
+          }
+        },
+        async function(decodedText) {
+          if (processing) return;
+
+          processing = true;
+          updateCameraButtons();
+
+          const id = extractId(decodedText);
+
+          await stopCamera();
+
+          if (!id) {
+            processing = false;
+            updateCameraButtons();
+            setStatus("QR code detected, but no ID Number could be identified.");
+            return;
+          }
+
+          document.getElementById("idNumber").value = id;
+          openVerificationPortal(id);
+        },
+        function() {
+          // No QR detected in this frame is normal.
+        }
+      );
+
+      cameraRunning = true;
+      setStatus("Camera is active. Point it at the personnel QR code.");
+    } catch (error) {
+      if (qrScanner) {
+        try { await qrScanner.clear(); } catch (ignored) {}
+      }
+
+      qrScanner = null;
+      cameraRunning = false;
+
+      const detail = error && error.message ? error.message : String(error);
+
+      setStatus(
+        "Unable to start the camera. Check Chrome camera permission and make sure " +
+        "you opened this page directly over HTTPS.\nDetails: " + detail
+      );
+    } finally {
+      cameraStarting = false;
+      updateCameraButtons();
+    }
+  }
+
+  async function stopCamera() {
+    const current = qrScanner;
+    const wasRunning = cameraRunning;
+
+    qrScanner = null;
+    cameraRunning = false;
+
+    if (current) {
+      if (wasRunning) {
+        try { await current.stop(); } catch (ignored) {}
+      }
+
+      try { await current.clear(); } catch (ignored) {}
+    }
+
+    cameraStarting = false;
+    updateCameraButtons();
+  }
+</script>
+</body>
+</html>
