@@ -172,6 +172,10 @@
       Stop Camera
     </button>
 
+    <button id="flipButton" class="secondary" type="button" onclick="flipCamera()" disabled>
+      🔄 Flip Camera
+    </button>
+
     <hr style="margin:24px 0;border:0;border-top:1px solid #e1e7e9;">
 
     <h3>Search by ID Number</h3>
@@ -240,6 +244,7 @@
   let cameraRunning = false;
   let cameraStarting = false;
   let processing = false;
+  let cameraFacingMode = "environment";
 
   function setStatus(message) {
     document.getElementById("status").textContent = message;
@@ -251,6 +256,9 @@
 
     document.getElementById("stopButton").disabled =
       !cameraRunning && !cameraStarting;
+
+    document.getElementById("flipButton").disabled =
+      !cameraRunning || cameraStarting || processing;
   }
 
   function extractId(value) {
@@ -427,7 +435,7 @@ function searchPersonnel() {
       qrScanner = new Html5Qrcode("reader");
 
       await qrScanner.start(
-        { facingMode: "environment" },
+        { facingMode: cameraFacingMode },
         {
           fps: 10,
           qrbox: function(width, height) {
@@ -530,6 +538,32 @@ function scanAnotherUser() {
   setStatus("Ready to scan or verify another personnel ID.");
   document.getElementById("idNumber").focus();
 }
+
+
+async function flipCamera() {
+  if (!cameraRunning || cameraStarting || processing) {
+    return;
+  }
+
+  // Switch between rear and front cameras
+  cameraFacingMode =
+    cameraFacingMode === "environment"
+      ? "user"
+      : "environment";
+
+  setStatus(
+    cameraFacingMode === "environment"
+      ? "Switching to rear camera..."
+      : "Switching to front camera..."
+  );
+
+  // Stop the current camera
+  await stopCamera();
+
+  // Start again using the selected camera
+  await startCamera();
+}
+
 
 </script>
 </body>
